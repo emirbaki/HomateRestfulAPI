@@ -1,5 +1,6 @@
 ﻿using Homate.Data;
 using Homate.Models;
+using Homate.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
@@ -14,17 +15,20 @@ namespace Homate.Controllers
     {
         private readonly ILogger<ShopController> _ilogger;
 
-        public ShopController(ILogger<ShopController> ilogger)
+        private readonly HomateRepositoryContext _context;
+        public ShopController(ILogger<ShopController> ilogger, HomateRepositoryContext context)
         {
             _ilogger = ilogger;
+            _context = context;
         }
 
         [HttpGet]
         public IActionResult GetAllShops()
         {
-            var allShops = Shops.shops;
 
-            if(allShops.Count== 0)
+            var allShops = _context.Shops;
+
+            if(allShops.Count() == 0)
             {
                 return NoContent();
             }
@@ -34,26 +38,27 @@ namespace Homate.Controllers
         [HttpGet("{id:int}")]
         public IActionResult GetShopByID(int id)
         {
-            var a = Shops.shops.Find(x => x.Id == id);
+            var element = _context.Shops.Find(id);
 
-            if (a is null)
+            if (element is null)
             {
                 return NotFound("Bulamadık la");
             }
             _ilogger.LogInformation("E bulduk aga");
-            return StatusCode(200, a);
+            return StatusCode(200, element);
         }
 
         [HttpPost]
         public IActionResult SubmitShop([FromBody] Shop shop)
         {
-            if (Shops.shops.Contains(shop) || Shops.shops.Any(x => x.Id == shop.Id))
+            if (_context.Shops.Contains(shop) || _context.Shops.Any(x => x.Id == shop.Id))
             {
                 return BadRequest("Bu Shop halihazırda var");
             }
             else
             {
-                Shops.shops.Add(shop);
+                _context.Shops.Add(shop);
+                _context.SaveChanges();
                 return StatusCode(200, shop);
 
             }
@@ -62,7 +67,7 @@ namespace Homate.Controllers
         [HttpPut("{id:int}")]
         public IActionResult UpdateShop(int id, [FromBody] Shop shop)
         {
-            var element = Shops.shops.Find(x => x.Id == id);
+            var element = _context.Shops.Find(id);
             if (id != shop.Id)
             {
                 return BadRequest("Headerdaki ID ile Body'deki ID uyuşmuyor");
@@ -75,6 +80,7 @@ namespace Homate.Controllers
             element.Id = shop.Id;
             element.Name = shop.Name;
             element.Description = shop.Description;
+            _context.SaveChanges();
 
             return StatusCode(200, element);
         }
@@ -82,13 +88,14 @@ namespace Homate.Controllers
         [HttpPatch("{id:int}")]
         public IActionResult PartiallyUpdateShop([FromRoute] int id, [FromBody] JsonPatchDocument<Shop> document)
         {
-            var element = Shops.shops.Find(x => x.Id == id);
+            var element = _context.Shops.Find(id);
 
             if(element is null)
             {
                 return NotFound("Bulamadık la");
             }
             document.ApplyTo(element);
+            _context.SaveChanges();
             return StatusCode(200);
         }
 
@@ -96,14 +103,15 @@ namespace Homate.Controllers
         [HttpDelete("{id:int}")]
         public IActionResult DeleteShopByID(int id)
         {
-            var element = Shops.shops.Find(x => x.Id == id);
+            var element = _context.Shops.Find(id);
             if (element is null)
             {
                 return NotFound("Bulamadık la");
             }
             else
             {
-                Shops.shops.Remove(element);
+                _context.Shops.Remove(element);
+                _context.SaveChanges();
             }
             return StatusCode(200, element);
         }
